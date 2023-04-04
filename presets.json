@@ -1,0 +1,18 @@
+{
+    "servers": [
+        {
+            "name": "Yahoo!メール",
+            "rcv_server": "pop.mail.yahoo.co.jp",
+            "rcv_port": 995,
+            "rcv_method": "ssl",
+            "memo": "ユーザー名は「使用したいメールアドレス または Yahoo! JAPAN ID」です。\nメールアドレスは「使用したいメールアドレス」です。\nパスワードは「Yahoo! JAPAN IDのパスワード」です。"
+        },
+        {
+            "name": "Gmail",
+            "rcv_server": "pop.gmail.com",
+            "rcv_port": 995,
+            "rcv_method": "ssl",
+            "memo": "ユーザー名は「使用したいメールアドレス」です。\nメールアドレスは「使用したいメールアドレス」です。\nパスワードは「Gmail のパスワード」です。"
+        }
+    ]
+}
