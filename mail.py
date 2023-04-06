@@ -1,13 +1,20 @@
 import os
 import poplib
+import email
+import email.header
+import PySimpleGUI as sg
 import json
-import common
 
 def get_pop3_emails(pop3_server, pop3_port, email_account, email_password):
 
     # ダンプ先フォルダ作成
-    folder = f"{pop3_server}_{email_account}"
-    os.makedirs(folder, exist_ok=True)
+    folder = email_account
+    try:
+        os.makedirs(folder, exist_ok=True)
+    except FileExistsError:
+        sg.popup('フォルダの作成に失敗しました')
+        return
+
 
     # POP3サーバーに接続
     mail_server = poplib.POP3_SSL(pop3_server, pop3_port)
@@ -16,10 +23,14 @@ def get_pop3_emails(pop3_server, pop3_port, email_account, email_password):
     mail_server.user(email_account)
     mail_server.pass_(email_password)
 
-    # 取得できるメールの件数を取得
-    num_messages = len(mail_server.list()[1])
+    print('ログイン完了')
+    mail_server_list = mail_server.list()
 
-    if not common.show_message_box('メールの総数は' + str(num_messages) + '件です\nテキストファイルにダンプしますか？'):
+    # 取得できるメールの件数を取得
+    print('取得完了')
+    num_messages = len(mail_server_list[1])
+
+    if sg.popup_ok_cancel('メールの総数は' + str(num_messages) + '件です\nテキストファイルにダンプしますか？') != 'OK':
         return
 
     # 全てのメールを保存するリスト
@@ -52,7 +63,7 @@ def get_pop3_emails(pop3_server, pop3_port, email_account, email_password):
 
         # 取得したメールのリストをJSON形式で保存
         with open(f"{folder}/{str(i).zfill(8)}.json", "w") as f:
-            json.dump(summaries, f, ensure_ascii=False)
+            json.dump(message, f, ensure_ascii=False)
             f.close()
 
     # 取得したメールの概要リストをJSON形式で保存

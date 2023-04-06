@@ -8,6 +8,9 @@ sg.theme('SystemDefaultForReal')
 # JSONファイルのパス
 JSON_PATH = './pop3_accounts.json'
 
+async def get_emails ():
+    mail.get_pop3_emails(pop3_server, int(pop3_port), email_account, email_password)
+
 # JSONファイルからアカウント情報を読み込む関数
 def load_accounts():
     try:
@@ -66,8 +69,7 @@ while True:
     event, values = window_main.read()
 
     if event == sg.WIN_CLOSED or event == '閉じる':
-        if sg.popup_ok_cancel('終了しますか？') == 'OK':
-            break
+        break
     elif event == 'プリセット':
         # 設定用ウィンドウが存在している場合は、破棄する
         if window_settings is not None:
@@ -77,7 +79,7 @@ while True:
         layout_settings = [ [sg.Text('アカウント一覧')],
                             [sg.Listbox(values=[account['name'] for account in accounts], size=(40, 10), key='-ACCOUNT_LIST-')],
                             [sg.Button('ロード'), sg.Button('追加'), sg.Button('削除'), sg.Button('更新')] ]
-        window_settings = sg.Window('アカウント設定', layout_settings)
+        window_settings = sg.Window('プリセット', layout_settings, disable_minimize=True)
 
         while True:
             event2, values2 = window_settings.read()
@@ -90,9 +92,9 @@ while True:
                     selected_index = window_settings['-ACCOUNT_LIST-'].get_indexes()[0]
                     if selected_index is not None:
                         selected_account = accounts[selected_index]
-                        window_main['-EMAIL_ACCOUNT-'].update(selected_account['pop3_server'])
+                        window_main['-POP3_SERVER-'].update(selected_account['pop3_server'])
                         window_main['-POP3_PORT-'].update(selected_account['pop3_port'])
-                        window_main['-POP3_SERVER-'].update(selected_account['email_account'])
+                        window_main['-EMAIL_ACCOUNT-'].update(selected_account['email_account'])
                         window_main['-EMAIL_USER-'].update(selected_account['email_user'])
                         sg.popup(f"'{selected_account['name']}'のアカウント情報をロードしました")
                 else:
@@ -119,14 +121,17 @@ while True:
                     save_account(account)
             elif event2 == '削除':
                 # アカウントの削除
-                selected_index = window_settings['-ACCOUNT_LIST-'].get_indexes()[0]
-                if selected_index is not None:
-                    name = accounts[selected_index]['name']
-                    del accounts[selected_index]
-                    window_settings['-ACCOUNT_LIST-'].update(values=[account['name'] for account in accounts])
-                    save_accounts(accounts)
-                    load_accounts()
-                    sg.popup(f"'{name}'のアカウント情報を削除しました")
+                if len(window_settings['-ACCOUNT_LIST-'].get_indexes()) != 0:
+                    selected_index = window_settings['-ACCOUNT_LIST-'].get_indexes()[0]
+                    if selected_index is not None:
+                        name = accounts[selected_index]['name']
+                        del accounts[selected_index]
+                        window_settings['-ACCOUNT_LIST-'].update(values=[account['name'] for account in accounts])
+                        save_accounts(accounts)
+                        load_accounts()
+                        sg.popup(f"'{name}'のアカウント情報を削除しました")
+                else:
+                    sg.popup('プリセットを選択してください')
             elif event2 == '更新':
                 # アカウント情報をJSONファイルに保存
                 if len(window_settings['-ACCOUNT_LIST-'].get_indexes()) != 0:
@@ -158,6 +163,8 @@ while True:
             sg.popup("'サーバー名'は必須です")
         elif len(pop3_port) == 0:
             sg.popup("'ポート'は必須です")
+        elif not pop3_port.isdecimal(): 
+            sg.popup("'ポート'は数値で入力する必要があります")
         elif len(email_account) == 0:
             sg.popup("'アカウント名'は必須です")
         elif len(email_user) == 0:
@@ -165,9 +172,20 @@ while True:
         elif len(email_password) == 0:
             sg.popup("'パスワード'は必須です")
         else:
-            # 入力値を使ってPOP3アクセスする処理を実装
-            mail.get_pop3_emails(pop3_server, pop3_port, email_account, email_password)
+            window_main['-POP3_SERVER-'].update(disabled=True)
+            window_main['-POP3_PORT-'].update(disabled=True)
+            window_main['-EMAIL_ACCOUNT-'].update(disabled=True)
+            window_main['-EMAIL_USER-'].update(disabled=True)
+            window_main['-EMAIL_PASSWORD-'].update(disabled=True)
 
+            # 入力値を使ってPOP3アクセスする処理を実装
+            mail.get_pop3_emails(pop3_server, int(pop3_port), email_account, email_password)
+
+            window_main['-POP3_SERVER-'].update(disabled=False)
+            window_main['-POP3_PORT-'].update(disabled=False)
+            window_main['-EMAIL_ACCOUNT-'].update(disabled=False)
+            window_main['-EMAIL_USER-'].update(disabled=False)
+            window_main['-EMAIL_PASSWORD-'].update(disabled=False)
     else:
         break
 
