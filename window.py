@@ -1,6 +1,6 @@
 import PySimpleGUI as sg
 import json
-import common
+import mail
 
 # PySimpleGUIのテーマを設定
 sg.theme('SystemDefaultForReal')
@@ -47,15 +47,16 @@ def save_accounts(accounts):
 accounts = load_accounts()
 
 # 画面レイアウト
-layout_main = [ [sg.Text('アカウント名:'), sg.InputText(key='-EMAIL_ACCOUNT-')],
+layout_main = [ [sg.Text('メールの取得に必要な情報を入力してください')],
                 [sg.Text('サーバー名　:'), sg.InputText(key='-POP3_SERVER-')],
                 [sg.Text('ポート　　　:'), sg.InputText(key='-POP3_PORT-')],
+                [sg.Text('アカウント名:'), sg.InputText(key='-EMAIL_ACCOUNT-')],
                 [sg.Text('ユーザー名　:'), sg.InputText(key='-EMAIL_USER-')],
                 [sg.Text('パスワード　:'), sg.InputText(key='-EMAIL_PASSWORD-', password_char='*')],
-                [sg.Button('OK'), sg.Button('キャンセル'), sg.Button('設定')] ]
+                [sg.Button('出力'), sg.Button('プリセット'), sg.Button('閉じる')] ]
 
 # ウィンドウの生成
-window_main = sg.Window('POP3アクセスに必要な情報を入力', layout_main)
+window_main = sg.Window('メールデータダンプ', layout_main)
 
 # 設定用のウィンドウを格納する変数
 window_settings = None
@@ -64,9 +65,10 @@ window_settings = None
 while True:
     event, values = window_main.read()
 
-    if event == sg.WIN_CLOSED or event == 'キャンセル':
-        break
-    elif event == '設定':
+    if event == sg.WIN_CLOSED or event == '閉じる':
+        if sg.popup_ok_cancel('終了しますか？') == 'OK':
+            break
+    elif event == 'プリセット':
         # 設定用ウィンドウが存在している場合は、破棄する
         if window_settings is not None:
             window_settings.close()
@@ -84,13 +86,17 @@ while True:
                 break
             elif event2 == 'ロード':
                 # アカウントの削除
-                selected_index = window_settings['-ACCOUNT_LIST-'].get_indexes()[0]
-                if selected_index is not None:
-                    selected_account = accounts[selected_index]
-                    window_main['-EMAIL_ACCOUNT-'].update(selected_account['pop3_server'])
-                    window_main['-POP3_PORT-'].update(selected_account['pop3_port'])
-                    window_main['-POP3_SERVER-'].update(selected_account['email_account'])
-                    window_main['-EMAIL_USER-'].update(selected_account['email_user'])
+                if len(window_settings['-ACCOUNT_LIST-'].get_indexes()) != 0:
+                    selected_index = window_settings['-ACCOUNT_LIST-'].get_indexes()[0]
+                    if selected_index is not None:
+                        selected_account = accounts[selected_index]
+                        window_main['-EMAIL_ACCOUNT-'].update(selected_account['pop3_server'])
+                        window_main['-POP3_PORT-'].update(selected_account['pop3_port'])
+                        window_main['-POP3_SERVER-'].update(selected_account['email_account'])
+                        window_main['-EMAIL_USER-'].update(selected_account['email_user'])
+                        sg.popup(f"'{selected_account['name']}'のアカウント情報をロードしました")
+                else:
+                    sg.popup('プリセットを選択してください')
             elif event2 == '追加':
                 # アカウントの追加
                 name = sg.popup_get_text('アカウント名を入力してください')
@@ -107,6 +113,7 @@ while True:
                         selected_account['email_account'] = window_main['-EMAIL_ACCOUNT-'].get()
                         selected_account['email_user'] = window_main['-EMAIL_USER-'].get()
                         save_account(selected_account)
+                        sg.popup(f"'{name}'のアカウント情報を追加しました")
 
                     window_settings['-ACCOUNT_LIST-'].update(values=[account['name'] for account in accounts])
                     save_account(account)
@@ -114,9 +121,12 @@ while True:
                 # アカウントの削除
                 selected_index = window_settings['-ACCOUNT_LIST-'].get_indexes()[0]
                 if selected_index is not None:
+                    name = accounts[selected_index]['name']
                     del accounts[selected_index]
                     window_settings['-ACCOUNT_LIST-'].update(values=[account['name'] for account in accounts])
                     save_accounts(accounts)
+                    load_accounts()
+                    sg.popup(f"'{name}'のアカウント情報を削除しました")
             elif event2 == '更新':
                 # アカウント情報をJSONファイルに保存
                 if len(window_settings['-ACCOUNT_LIST-'].get_indexes()) != 0:
@@ -128,6 +138,7 @@ while True:
                         selected_account['email_account'] = window_main['-EMAIL_ACCOUNT-'].get()
                         selected_account['email_user'] = window_main['-EMAIL_USER-'].get()
                         save_account(selected_account)
+                        sg.popup(f"'{selected_account['name']}'のアカウント情報を更新しました")
                 else:
                     sg.popup('プリセットを選択してください')
 
@@ -135,7 +146,7 @@ while True:
         window_settings.close()
         window_settings = None
 
-    elif event == '取得':
+    elif event == '出力':
         # アカウント情報を取得
         pop3_server = values['-POP3_SERVER-']
         pop3_port = values['-POP3_PORT-']
@@ -143,17 +154,22 @@ while True:
         email_user = values['-EMAIL_USER-']
         email_password = values['-EMAIL_PASSWORD-']
 
-        # TODO: 入力値を使ってPOP3アクセスする処理を実装
+        if len(pop3_server) == 0:
+            sg.popup("'サーバー名'は必須です")
+        elif len(pop3_port) == 0:
+            sg.popup("'ポート'は必須です")
+        elif len(email_account) == 0:
+            sg.popup("'アカウント名'は必須です")
+        elif len(email_user) == 0:
+            sg.popup("'ユーザー名'は必須です")
+        elif len(email_password) == 0:
+            sg.popup("'パスワード'は必須です")
+        else:
+            # 入力値を使ってPOP3アクセスする処理を実装
+            mail.get_pop3_emails(pop3_server, pop3_port, email_account, email_password)
 
     else:
-        # リストボックスが選択された場合は、各項目に自動入力する
-        if len(values['-ACCOUNT_LIST-']) > 0:
-            selected_index = window_main['-ACCOUNT_LIST-'].get_indexes()[0]
-            selected_account = accounts[selected_index]
-            window_main['-EMAIL_ACCOUNT-'].update(selected_account['email_account'])
-            window_main['-POP3_SERVER-'].update(selected_account['pop3_server'])
-            window_main['-EMAIL_USER-'].update(selected_account['email_user'])
-            window_main['-EMAIL_PASSWORD-'].update(selected_account['email_password'])
+        break
 
 # ウィンドウの破棄と終了
 if window_settings is not None:

@@ -1,6 +1,5 @@
 import PySimpleGUI as sg
 
-
 def show_message_box (title: str):
     # メッセージボックスのレイアウト
     layout = [

@@ -1,8 +1,14 @@
+import os
 import poplib
 import json
 import common
 
 def get_pop3_emails(pop3_server, pop3_port, email_account, email_password):
+
+    # ダンプ先フォルダ作成
+    folder = f"{pop3_server}_{email_account}"
+    os.makedirs(folder, exist_ok=True)
+
     # POP3サーバーに接続
     mail_server = poplib.POP3_SSL(pop3_server, pop3_port)
 
@@ -17,11 +23,12 @@ def get_pop3_emails(pop3_server, pop3_port, email_account, email_password):
         return
 
     # 全てのメールを保存するリスト
-    messages = []
+    summaries = []
 
     # 全てのメールを１通ずつ取得し、辞書型に変換しリストに追加
     print('メールの取得中...')
     for i in range(num_messages):
+        summary = {}
         message = {}
         raw_message = b"\n".join(mail_server.retr(i + 1)[1]).decode("utf-8", errors="replace")
 
@@ -35,16 +42,23 @@ def get_pop3_emails(pop3_server, pop3_port, email_account, email_password):
                 key, value = line.split(":", 1)
                 header_dict[key.strip()] = value.strip()
         message["header"] = header_dict
+        summary["header"] = header_dict
 
         # メールボディをUnicode文字列に変換して追加
         message["body"] = body.encode("utf-8", errors="replace").decode("utf-8", errors="replace")
 
         # リストに追加
-        messages.append(message)
+        summaries.append(summary)
 
-    # 取得したメールのリストをJSON形式で保存
-    with open("emails.json", "w") as f:
-        json.dump(messages, f, ensure_ascii=False)
+        # 取得したメールのリストをJSON形式で保存
+        with open(f"{folder}/{str(i).zfill(8)}.json", "w") as f:
+            json.dump(summaries, f, ensure_ascii=False)
+            f.close()
+
+    # 取得したメールの概要リストをJSON形式で保存
+    with open(f"{folder}/summary.json", "w") as f:
+        json.dump(summaries, f, ensure_ascii=False)
+        f.close()
 
     # メールサーバーからログアウト
     mail_server.quit()
